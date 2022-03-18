@@ -4,10 +4,10 @@ import Icon from 'react-native-vector-icons/FontAwesome';
 import ImageHeader from '../components/ImageHeader';
 // import HTMLView from "react-native-htmlview";
 import {WebView} from 'react-native-webview';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import {useBackHandler} from '@react-native-community/hooks';
 import AnimatedLoader from 'react-native-animated-loader';
 import {useFocusEffect} from '@react-navigation/native';
+import {Data} from '../data';
 
 export default function Menu({navigation}) {
   const [showLoading, setShowLoading] = useState(false);
@@ -22,32 +22,29 @@ export default function Menu({navigation}) {
   const [initialized, setInitialzied] = useState(false);
 
   useFocusEffect(() => {
-    AsyncStorage.multiGet(['city', 'points', 'is_registered']).then(data => {
-      console.log(2);
-      let city = data[0][1];
-      setPoints(data[1][1]);
-      setCity(city);
-      setIsRegistered(data[2][1] == '1');
-      switch (city) {
-        case 'Київ': {
-          setInstLink('https://instagram.com/dentalcity_kyiv');
-          setFacebookLink('https://www.facebook.com/dentalcitykiev/');
-          setGoogleMapLink('https://g.co/kgs/Hh1sWi');
-          break;
-        }
-        case 'Чернігів': {
-          setInstLink('https://instagram.com/elit_clinic_che');
-          setFacebookLink('https://www.facebook.com/elitchernigov/');
-          setGoogleMapLink('https://g.co/kgs/xZqANn');
-          break;
-        }
-        default: {
-          setInstLink('https://instagram.com/elitclinic');
-          setFacebookLink('https://www.facebook.com/elitclinicbc/');
-          setGoogleMapLink('https://g.co/kgs/dgdSDU');
-        }
+    let data = Data.getInstance();
+    setPoints('' + data.points);
+    setCity(data.city);
+    setIsRegistered(data.is_registered);
+    switch (city) {
+      case 'Київ': {
+        setInstLink('https://instagram.com/dentalcity_kyiv');
+        setFacebookLink('https://www.facebook.com/dentalcitykiev/');
+        setGoogleMapLink('https://g.co/kgs/Hh1sWi');
+        break;
       }
-    });
+      case 'Чернігів': {
+        setInstLink('https://instagram.com/elit_clinic_che');
+        setFacebookLink('https://www.facebook.com/elitchernigov/');
+        setGoogleMapLink('https://g.co/kgs/xZqANn');
+        break;
+      }
+      default: {
+        setInstLink('https://instagram.com/elitclinic');
+        setFacebookLink('https://www.facebook.com/elitclinicbc/');
+        setGoogleMapLink('https://g.co/kgs/dgdSDU');
+      }
+    }
   });
 
   useBackHandler(() => true);
@@ -79,11 +76,9 @@ export default function Menu({navigation}) {
       setShowLoading(false);
       if (response.status == 200) {
         setShowSuccessful(true);
-        let points_float = 0;
-        if (points) points_float = parseFloat(points);
-        if (points_float >= 100) {
-          AsyncStorage.setItem('points', points_float - 100 + '');
-          setPoints(points_float - 100 + '');
+        if (Data.get('points') >= 100) {
+          Data.update({points: Data.get('points') - 100});
+          setPoints(Data.get('points') - 100 + '');
         }
       } else setShowFailed(true);
 
@@ -98,9 +93,7 @@ export default function Menu({navigation}) {
 
   askRegisteredMakeAppointment = () => {
     let description = '';
-    let points_float = 0;
-    if (points) points_float = parseFloat(points);
-    if (points_float >= 100)
+    if (Data.get('points') >= 100)
       description =
         'Автоматично будуть використані 100 балів та ви отримаєте безкоштовне обстеження';
     else description = '(накопичуйте бали та отримуйте безкоштовне обстеження)';
@@ -115,26 +108,24 @@ export default function Menu({navigation}) {
         {
           text: 'Так',
           onPress: () => {
-            AsyncStorage.multiGet(['name', 'phone', 'birthday']).then(data => {
-              let msg =
-                '<h2>Користувач мобільного додатку бажає записатися на прийом</h2><br>' +
-                "Ім'я: <b>" +
-                data[0][1] +
-                '</b><br>' +
-                'Номер телефону: <b>' +
-                data[1][1] +
-                '</b><br>' +
-                'Дата народження: <b>' +
-                data[2][1] +
-                '</b><br>' +
-                'Обране місто для прийому: <b>' +
-                city +
-                '</b><br>' +
-                'Чи безкоштовно: <b>' +
-                (points_float >= 100 ? 'Так' : 'Ні') +
-                '</b>';
-              makeAppointment(msg);
-            });
+            let msg =
+              '<h2>Користувач мобільного додатку бажає записатися на прийом</h2><br>' +
+              "Ім'я: <b>" +
+              Data.get('name') +
+              '</b><br>' +
+              'Номер телефону: <b>' +
+              Data.get('phone]') +
+              '</b><br>' +
+              'Дата народження: <b>' +
+              Data.get('birthday') +
+              '</b><br>' +
+              'Обране місто для прийому: <b>' +
+              city +
+              '</b><br>' +
+              'Чи безкоштовно: <b>' +
+              (Data.get('points') >= 100 ? 'Так' : 'Ні') +
+              '</b>';
+            makeAppointment(msg);
           },
         },
       ],
@@ -273,9 +264,8 @@ export default function Menu({navigation}) {
             style={styles.high1}
             onPress={() => {
               console.log(isRegistered);
-              AsyncStorage.setItem('prev', 'menu').then(() => {
-                navigation.navigate(isRegistered ? 'profile' : 'registration');
-              });
+              Data.getInstance().prev = 'menu';
+              navigation.navigate(isRegistered ? 'profile' : 'registration');
             }}
           />
         </View>

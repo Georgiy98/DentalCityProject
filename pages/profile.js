@@ -36,7 +36,7 @@ export default function Profile({navigation}) {
           AsyncStorage.setItem('is_registered', '');
           AsyncStorage.setItem('skip_registration', '');
           AsyncStorage.setItem('points', '0');
-          AsyncStorage.setItem('prev', 'menu').then(() => {
+          AsyncStorage.setItem('prev', 'welcome').then(() => {
             navigation.navigate('registration');
           });
         },

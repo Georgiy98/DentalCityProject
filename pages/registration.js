@@ -13,7 +13,7 @@ import Icon from 'react-native-vector-icons/AntDesign';
 import NameValidator from '../widgets/validators/NameValidator';
 import PhoneNumberValidator from '../widgets/validators/PhoneNumberValidator';
 import DateValidator from '../widgets/validators/DateValidator';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import {Data} from '../data';
 import {useBackHandler} from '@react-native-community/hooks';
 
 export default function Registration({navigation}) {
@@ -55,8 +55,10 @@ export default function Registration({navigation}) {
         {
           text: 'Так',
           onPress: () => {
-            AsyncStorage.setItem('is_registered', '');
-            AsyncStorage.setItem('skip_registration', '1');
+            Data.update({
+              is_registered: false,
+              skip_registration: true,
+            });
             navigation.navigate('menu');
           },
         },
@@ -77,13 +79,17 @@ export default function Registration({navigation}) {
         ('0' + (birthday.getMonth() + 1)).slice(-2) +
         '.' +
         birthday.getFullYear();
-      AsyncStorage.setItem('name', name);
-      AsyncStorage.setItem('phone', phone);
-      AsyncStorage.setItem('city', city);
-      AsyncStorage.setItem('birthday', birthday_str);
-      AsyncStorage.setItem('points', '0');
-      AsyncStorage.setItem('is_registered', '1');
-      AsyncStorage.setItem('skip_registration', '1');
+      Data.update({
+        name: name,
+        phone: phone,
+        city: city,
+        birthday: birthday_str,
+        points: 0,
+        is_registered: true,
+        skip_registration: true,
+        last_exercise_time: new Date().getTime(),
+        last_exercise_completed: false,
+      });
       navigation.navigate('menu');
     }
     console.log(
@@ -102,10 +108,7 @@ export default function Registration({navigation}) {
     );
   };
   useBackHandler(() => {
-    AsyncStorage.getItem('prev').then(prev => {
-      console.log(prev);
-      navigation.navigate(prev);
-    });
+    navigation.navigate(Data.getInstance().prev);
   });
   return (
     <SafeAreaView style={{flex: 1}}>

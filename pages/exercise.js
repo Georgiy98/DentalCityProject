@@ -1,10 +1,13 @@
 import React, {useEffect, useRef, useState} from 'react';
 import {
   View,
+  Text,
   StyleSheet,
   Dimensions,
   StatusBar,
   TouchableWithoutFeedback,
+  Alert,
+  BackHandler,
 } from 'react-native';
 import Video from 'react-native-video';
 import GoodButton from '../widgets/GoodButton';
@@ -12,6 +15,10 @@ import Orientation from 'react-native-orientation';
 import {useBackHandler} from '@react-native-community/hooks';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import * as Progress from 'react-native-progress';
+import AnimatedLoader from 'react-native-animated-loader';
+import {useFocusEffect} from '@react-navigation/native';
+import {Data} from '../data';
+import NativeClipboard from 'react-native/Libraries/Components/Clipboard/NativeClipboard';
 
 export default function Exercise({navigation}) {
   const [paused, setPaused] = useState(true);
@@ -26,14 +33,123 @@ export default function Exercise({navigation}) {
   const [duration, setDuration] = useState(1);
   const [progress, setProgress] = useState(0);
   const [showAbovePanel, setShowAbovePanel] = useState(false);
+  const [showCongrats, setShowCongrats] = useState(false);
+  const [potentialAward, setPotentailAward] = useState();
+  const [infoText, setInfoText] = useState('');
+  const [isActive, setIsActive] = useState(true);
+
   const pauseRef = useRef(paused);
   pauseRef.current = paused;
   const videoRef = useRef();
 
-  useBackHandler(() => {
+  onBack = () => {
     Orientation.lockToPortrait();
-    if (orientation == 'portrait') navigation.navigate('menu');
-    else handleFullscreenClick();
+    if (orientation == 'portrait') {
+      if (potentialAward == 0 || progress == 0) {
+        setIsActive(false);
+        navigation.navigate('menu');
+      } else if (potentialAward == 1 && progress * 2 > duration)
+        Alert.alert(
+          'Ви впевнені?',
+          'Якщо покинете відео, ви отримаєте лише пів бали!',
+          [
+            {
+              text: 'Ні',
+              style: 'cancel',
+            },
+            {
+              text: 'Так',
+              onPress: () => {
+                setIsActive(false);
+                Data.update({
+                  points: Data.get('points') + 0.5,
+                  last_exercise_completed: false,
+                  last_exercise_time: new Date().getTime(),
+                });
+                navigation.navigate('menu');
+              },
+            },
+          ],
+          {
+            cancelable: true,
+          },
+        );
+      else
+        Alert.alert(
+          'Ви впевнені?',
+          'Якщо покинете відео, бали не будуть нараховані',
+          [
+            {
+              text: 'Ні',
+              style: 'cancel',
+            },
+            {
+              text: 'Так',
+              onPress: () => {
+                setIsActive(false);
+                navigation.navigate('menu');
+              },
+            },
+          ],
+          {
+            cancelable: true,
+          },
+        );
+    } else handleFullscreenClick();
+  };
+  updateInfo = () => {
+    let nextAvailableTime = new Date(
+      Data.get('last_exercise_time') + 1000 * 60 * 60 * 8,
+    );
+    if (!Data.get('is_registered')) {
+      setInfoText(
+        'Незареєстровані користувачі не можуть отримати бонус за перегляд відео',
+      );
+      setPotentailAward(0);
+    } else if (
+      Data.get('last_exercise_completed') &&
+      nextAvailableTime > new Date()
+    ) {
+      setInfoText(
+        'Ви вже отримали бонус за перегляд відео нещодавно\nНаступний раз ви зможете отримати бонус не раніше ніж ' +
+          nextAvailableTime.toLocaleDateString() +
+          ' o ' +
+          nextAvailableTime.toLocaleTimeString(),
+      );
+      setPotentailAward(0);
+    } else if (
+      !Data.get('last_exercise_completed') &&
+      nextAvailableTime > new Date()
+    ) {
+      setInfoText(
+        'Ви вже 0.5 балів за це відео. За повний перегляд ви отримаєте ще 0.5 балів.\nОновлення ' +
+          nextAvailableTime.toLocaleDateString() +
+          ' o ' +
+          nextAvailableTime.toLocaleTimeString(),
+      );
+      setPotentailAward(0.5);
+    } else {
+      setInfoText(
+        'За повний перегляд даного відео ви отримаєте 1 бал\nКожні 100 балів ви можете обміняти на безкоштовне обстеження',
+      );
+      setPotentailAward(1);
+    }
+    setTimeout(() => {
+      if (isActive) updateInfo();
+    }, 1000);
+  };
+
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('beforeRemove', e => {
+      e.preventDefault();
+      unsubscribe(); // Unsubscribe the event on first call to prevent infinite loop
+      onBack();
+    });
+    updateInfo();
+  }, []);
+
+  useBackHandler(() => {
+    navigation.goBack();
   });
 
   handleLoad = meta => {
@@ -52,7 +168,14 @@ export default function Exercise({navigation}) {
       }, 1000);
     setPaused(!paused);
   };
-  handleEnd = () => {};
+  handleEnd = () => {
+    console.log('hadleENd');
+    setShowCongrats(true);
+    setTimeout(() => {
+      setShowCongrats(false);
+      navigation.navigate('menu');
+    }, 5000);
+  };
   handleFullscreenClick = () => {
     if (fullscreen) {
       navigation.setOptions({headerShown: true});
@@ -95,10 +218,24 @@ export default function Exercise({navigation}) {
             }
           : {}
       }>
+      <AnimatedLoader
+        visible={showCongrats}
+        overlayColor="rgba(255,255,255,0.95)"
+        animationStyle={styles.lottie}
+        source={require('../media/animations/exercise_done.json')}
+        speed={1}>
+        <Text style={styles.lottieText}>
+          Кількість ваших балів тепер на {potentialAward} більша!
+          {Data.get('poinst') >= 100
+            ? '\nВам доступне безкоштовне обстеження!'
+            : ''}
+        </Text>
+      </AnimatedLoader>
       <Video
         source={require('../media/videos/video.mp4')}
         resizeMode="stretch"
         paused={paused}
+        onEnd={handleEnd}
         ref={ref => {
           videoRef.current = ref;
         }}
@@ -112,6 +249,13 @@ export default function Exercise({navigation}) {
         onLoad={handleLoad}
         onProgress={handleProgress}
       />
+      <Text
+        style={{
+          color: potentialAward == 1 ? '#8b8' : '#cc8',
+          padding: 10,
+        }}>
+        {infoText}
+      </Text>
       <TouchableWithoutFeedback onPress={invertShowAbovePanel}>
         <View
           style={{

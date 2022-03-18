@@ -3,11 +3,12 @@ import {StyleSheet, Text, View, SafeAreaView} from 'react-native';
 import ImageHeader from '../components/ImageHeader';
 import GoodButton from '../widgets/GoodButton';
 import {useBackHandler} from '@react-native-community/hooks';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import {Data} from '../data';
 
 export default function Welcome({navigation}) {
   useEffect(() => {
-    AsyncStorage.setItem('prev', 'welcome');
+    Data.getInstance().prev = 'welcome';
+    // AsyncStorage.setItem('prev', 'welcome');
   });
   useBackHandler(() => true);
   return (
